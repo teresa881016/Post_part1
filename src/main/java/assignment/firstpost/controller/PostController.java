@@ -31,22 +31,23 @@ public class PostController {
         Post post = new Post(requestDto);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
-        String sql = "INSERT INTO post(title, name, password, contents) values (?,?,?,?)";
+        String sql = "INSERT INTO post(title, contents, name, password) values (?,?,?,?)";
         jdbcTemplate.update(con -> {
                     PreparedStatement preparedStatement = con.prepareStatement(sql,
                             Statement.RETURN_GENERATED_KEYS);
 
                     preparedStatement.setString(1, post.getTitle());
-                    preparedStatement.setString(2, post.getName());
-                    preparedStatement.setString(3, post.getPassword());
-                    preparedStatement.setString(4, post.getContents());
+                    preparedStatement.setString(2, post.getContents());
+                    preparedStatement.setString(3, post.getName());
+                    preparedStatement.setString(4, post.getPassword());
+
                     return preparedStatement;
                 },
                 keyHolder);
 
         // DB insert 받아온 기본키 확인하기
-        String name = post.getName();
-        post.setName(name);
+        Long id = keyHolder.getKey().longValue();
+        post.setId(id);
 
         PostResponseDto postResponseDto = new PostResponseDto(post);
         return postResponseDto;
@@ -62,13 +63,14 @@ public class PostController {
 
             @Override
             public PostResponseDto mapRow(ResultSet rs, int rowNum) throws SQLException {
-
+                Long id = rs.getLong("id");
                 String title = rs.getString("title");
+                String contents = rs.getString("contents");
                 String name = rs.getString("name");
                 String password = rs.getString("password");
-                String contents = rs.getString("contents");
-                String fromdate = rs.getString("fromdate");
-                return new PostResponseDto(title, name, password, contents, fromdate);
+                String fromDate = rs.getString("fromDate");
+                String toDate = rs.getString("toDate");
+                return new PostResponseDto(id, title, contents, name, password, fromDate, toDate);
 
             }
         });
@@ -76,14 +78,16 @@ public class PostController {
     }
 
 
-    @PutMapping("/posts/{password}")
-    public String updatePost(@PathVariable String password, @RequestBody PostRequestDto requestDto) {
-        Post post = findById(password);
+    @PutMapping("/posts/{id}")
+    public Long updatePost(@PathVariable Long id, @RequestBody PostRequestDto requestDto) {
+        Post post = findById(id);
+        String password = post.getPassword();
         if (post != null) {
 
-            String sql = "UPDATE post SET title = ?, name = ?, contents = ? WHERE password = ?";
-            jdbcTemplate.update(sql, requestDto.getTitle(), requestDto.getName(), requestDto.getContents(), password);
-            return post.getContents();
+            String sql = "UPDATE post SET title = ?, name = ?, contents = ? WHERE id = ? and password = ?";
+            jdbcTemplate.update(sql, requestDto.getTitle(), requestDto.getName(), requestDto.getContents(), id, password);
+
+            return id;
         } else {
             throw new IllegalArgumentException("선택한 게시글은 존재하지 않습니다.");
         }
@@ -92,13 +96,14 @@ public class PostController {
 
 
     // 삭제하기
-    @DeleteMapping("/posts/{password}")
-    public String deletePost(@PathVariable String password){
-        Post post = new Post();
+    @DeleteMapping("/posts/{id}")
+    public String deletePost(@PathVariable Long id) {
+        Post post = findById(id);
+        String password = post.getPassword();
 
-        if(findById(password) != null){
-            String sql = "DELETE FROM post WHERE password = ?";
-            jdbcTemplate.update(sql, password);
+        if (post != null) {
+            String sql = "DELETE FROM post WHERE id = ? and password = ?";
+            jdbcTemplate.update(sql, id, password);
 
             return post.getContents();
         } else {
@@ -108,20 +113,20 @@ public class PostController {
     }
 
 
+    private Post findById(Long id) {
+        String sql = "SELECT * FROM post WHERE id = ?";
 
-    private Post findById(String password) {
-        String sql = "SELECT * FROM post WHERE password = ?";
         return jdbcTemplate.query(sql, resultSet -> {
-            if(resultSet.next()){
+            if (resultSet.next()) {
                 Post post = new Post();
                 post.setName(resultSet.getString("name"));
                 post.setContents(resultSet.getString("contents"));
                 post.setPassword(resultSet.getString("password"));
                 return post;
-            } else{
+            } else {
                 return null;
             }
-        }, password);
+        }, id);
     }
 
 
