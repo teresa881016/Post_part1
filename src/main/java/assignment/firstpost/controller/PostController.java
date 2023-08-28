@@ -80,6 +80,7 @@ public class PostController {
 
     @PutMapping("/posts/{id}")
     public Long updatePost(@PathVariable Long id, @RequestBody PostRequestDto requestDto) {
+        String answer = "수정이 되었습니다.";
         Post post = findById(id);
         String password = post.getPassword();
         if (post != null) {
@@ -102,8 +103,8 @@ public class PostController {
         String password = post.getPassword();
 
         if (post != null) {
-            String sql = "DELETE FROM post WHERE id = ? and password = ?";
-            jdbcTemplate.update(sql, id, password);
+            String sql = "DELETE FROM post WHERE password = ?";
+            jdbcTemplate.update(sql, password);
 
             return post.getContents();
         } else {
